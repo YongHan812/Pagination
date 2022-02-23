@@ -1,0 +1,136 @@
+﻿@model Pagination.Models.DemoViewModel
+
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h2>Index</h2>
+
+<form asp-action="Index" method="get">
+    <div class="form-actions no-color">
+        <p>
+            Find by name: <input type="text" name="SearchName" id="SearchName" value="@Model.SearchName" />
+            <input type="submit" id="btnSearch" value="Search" class="btn btn-default" /> |
+            <a asp-action="Index">Back to Full List</a>
+        </p>
+    </div>
+</form>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th scope="col">
+                <a asp-action="Index" asp-route-sortOrder="@Model.IdSortParam">@Html.DisplayNameFor(model => model.Demos.FirstOrDefault().Id)</a>
+            </th>
+            <th scope="col">
+                <a asp-action="Index" asp-route-sortOrder="@Model.NameSortParam">@Html.DisplayNameFor(model => model.Demos.FirstOrDefault().Name)</a>
+            </th>
+        </tr>
+    </thead>
+    
+    @*<tbody>
+            @foreach (var item in Model.Demos)
+            {
+                <tr>
+                    <th scope="row">@item.Id</th>
+                    <td>@item.Name</td>
+                </tr>
+            }
+        </tbody>*@
+</table>
+<table id="tblPage" class="table table-bordered table-striped table-responsive table-hover">
+    <thead>
+        <tr>
+            <th align="left" class="productth">ID</th>
+            <th align="left" class="productth">Name</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<nav aria-label="Page navigation example">
+    <ul class="pagination justify-content-center">
+        <li class="page-item @(Model.PageIndex <= 1 ? "disabled" : "")">
+            <a class="page-link" asp-action="Index" asp-route-pageIndex="@(Model.PageIndex - 1)">Previous</a>
+        </li>
+
+        @{
+            bool isStart = Model.PageIndex <= 3;
+            int startingInt = 1;
+            int totalInt = 0;
+            int totalPage = 0;
+
+            totalInt = Model.TotalCount / 5;
+
+            if ((Model.TotalCount % 5) >= 1)
+            {
+
+            }
+
+            if (!isStart && totalInt - Model.PageIndex > 1)
+            {
+                startingInt = Model.PageIndex - 2;
+                //startingInt = Model.PageIndex / 3;
+            }
+            else if (!isStart && totalInt - Model.PageIndex < 1)
+            {
+                startingInt = Model.PageIndex - 4;
+            }
+            else if (!isStart && totalInt - Model.PageIndex >= 1)
+            {
+                startingInt = Model.PageIndex - 3;
+            }
+
+
+            //else
+            //{
+            //    startingInt = Model.PageIndex / 3;
+            //    startingInt = Model.PageIndex - 2;
+            //}
+        }
+
+        @for (int i = startingInt; i < startingInt + 5; i++)
+        {
+            if ((i - 1) * 5 >= Model.TotalCount)
+            {
+                break;
+            }
+
+            <li class="page-item @((Model.PageIndex == i) ? "active" : "")">
+                <a class="page-link" asp-action="Index" asp-route-pageIndex="@i">@i</a>
+            </li>
+        }
+
+        <li class="page-item @((Model.PageIndex >= Model.TotalCount / 5) ? "disabled" : "")">
+            <a class="page-link" asp-action="Index" asp-route-pageIndex="@(Model.PageIndex + 1)">Next</a>
+        </li>
+    </ul>
+</nav>
+
+
+
+@section Scripts {
+    <script type="text/javascript">
+        function LoadData() {
+            $("#tblPage tbody tr").remove();
+                $.ajax({
+                    type:'POST',
+                    url: '@Url.Action("GetResult")',
+                    data: { id: '' },
+                    success: function (data) {
+                        var items = '';
+                        $.each(data, function (i, item) {
+                            var rows = "<tr>"
+                                + "<td class='prtoducttd'>" + item.ID + "</td>"
+                                + "<td class='prtoducttd'>" + item.Name + "</td>"
+                                + "</tr>";
+                            $('#tblPage tbody').append(rows);
+                        });
+                    },
+                });
+                return false;
+        }
+
+
+    </script>
+}
