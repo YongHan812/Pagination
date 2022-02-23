@@ -1,4 +1,4 @@
-﻿@model Pagination.Models.DemoViewModel
+﻿@model DemoTable
 
 @{
     ViewData["Title"] = "Index";
@@ -6,131 +6,201 @@
 
 <h2>Index</h2>
 
-<form asp-action="Index" method="get">
-    <div class="form-actions no-color">
-        <p>
-            Find by name: <input type="text" name="SearchName" id="SearchName" value="@Model.SearchName" />
-            <input type="submit" id="btnSearch" value="Search" class="btn btn-default" /> |
-            <a asp-action="Index">Back to Full List</a>
-        </p>
-    </div>
-</form>
+<div>
+    Find by name: <input type="text" id="searchName" />
+    <button id="btnSearch" class="btn btn-primary" >Search</button>
+</div>
 
 <table class="table">
     <thead>
         <tr>
             <th scope="col">
-                <a asp-action="Index" asp-route-sortOrder="@Model.IdSortParam">@Html.DisplayNameFor(model => model.Demos.FirstOrDefault().Id)</a>
+                @Html.DisplayNameFor(model => model.Id)
             </th>
             <th scope="col">
-                <a asp-action="Index" asp-route-sortOrder="@Model.NameSortParam">@Html.DisplayNameFor(model => model.Demos.FirstOrDefault().Name)</a>
+                @Html.DisplayNameFor(model => model.Name)
             </th>
         </tr>
     </thead>
     
-    @*<tbody>
-            @foreach (var item in Model.Demos)
-            {
-                <tr>
-                    <th scope="row">@item.Id</th>
-                    <td>@item.Name</td>
-                </tr>
-            }
-        </tbody>*@
-</table>
-<table id="tblPage" class="table table-bordered table-striped table-responsive table-hover">
-    <thead>
-        <tr>
-            <th align="left" class="productth">ID</th>
-            <th align="left" class="productth">Name</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
+    <tbody id="tableBody">
+        @*<tr>
+            <th scope="row">Id</th>
+            <td>Name</td>
+        </tr>*@
+    </tbody>
 </table>
 
 <nav aria-label="Page navigation example">
-    <ul class="pagination justify-content-center">
-        <li class="page-item @(Model.PageIndex <= 1 ? "disabled" : "")">
-            <a class="page-link" asp-action="Index" asp-route-pageIndex="@(Model.PageIndex - 1)">Previous</a>
+    <ul id="paginationLink" class="pagination justify-content-center user-select-none">
+        @*<li id="previousBtn" class="page-item disabled">
+            <a class="page-link" href="#">Previous</a>
         </li>
 
-        @{
-            bool isStart = Model.PageIndex <= 3;
-            int startingInt = 1;
-            int totalInt = 0;
-            int totalPage = 0;
-
-            totalInt = Model.TotalCount / 5;
-
-            if ((Model.TotalCount % 5) >= 1)
-            {
-
-            }
-
-            if (!isStart && totalInt - Model.PageIndex > 1)
-            {
-                startingInt = Model.PageIndex - 2;
-                //startingInt = Model.PageIndex / 3;
-            }
-            else if (!isStart && totalInt - Model.PageIndex < 1)
-            {
-                startingInt = Model.PageIndex - 4;
-            }
-            else if (!isStart && totalInt - Model.PageIndex >= 1)
-            {
-                startingInt = Model.PageIndex - 3;
-            }
-
-
-            //else
-            //{
-            //    startingInt = Model.PageIndex / 3;
-            //    startingInt = Model.PageIndex - 2;
-            //}
-        }
-
-        @for (int i = startingInt; i < startingInt + 5; i++)
-        {
-            if ((i - 1) * 5 >= Model.TotalCount)
-            {
-                break;
-            }
-
-            <li class="page-item @((Model.PageIndex == i) ? "active" : "")">
-                <a class="page-link" asp-action="Index" asp-route-pageIndex="@i">@i</a>
-            </li>
-        }
-
-        <li class="page-item @((Model.PageIndex >= Model.TotalCount / 5) ? "disabled" : "")">
-            <a class="page-link" asp-action="Index" asp-route-pageIndex="@(Model.PageIndex + 1)">Next</a>
+        <li class="page-item @(i == 1 ? "active" : "")">
+            <a class="page-link page-index" href="#">@i</a>
         </li>
+
+        <li id="nextBtn" class="page-item">
+            <a class="page-link" href="#">Next</a>
+        </li>*@
     </ul>
 </nav>
 
-
-
 @section Scripts {
     <script type="text/javascript">
-        function LoadData() {
-            $("#tblPage tbody tr").remove();
-                $.ajax({
-                    type:'POST',
-                    url: '@Url.Action("GetResult")',
-                    data: { id: '' },
-                    success: function (data) {
-                        var items = '';
-                        $.each(data, function (i, item) {
-                            var rows = "<tr>"
-                                + "<td class='prtoducttd'>" + item.ID + "</td>"
-                                + "<td class='prtoducttd'>" + item.Name + "</td>"
-                                + "</tr>";
-                            $('#tblPage tbody').append(rows);
-                        });
-                    },
+        $(document).ready(() => {
+
+            // GLOBAL VARIABLE ================================================================================
+            let GLOBAL_SEARCH_NAME;
+            let GLOBAL_SORT_ORDER;
+
+            // to prevent xss attack ==========================================================================
+            let text = (str) => {
+                return $('<div>',{text:str}).text();
+            };
+
+            // to re-render the pagination link  ==============================================================
+            let renderPaginationLink = (pageIndex, totalCount) => {
+
+                // refresh the dom -------------------------------------------------------------------
+                let paginationLink = $('#paginationLink');
+                paginationLink.html('');
+
+                // append previousBtn, and look is it disable or not ---------------------------------
+                let previousDisabled = (pageIndex <= 1) ? 'disabled' : '';
+                paginationLink.append(`
+                    <li id="previousBtn" class="page-item ${previousDisabled}">
+                        <a class="page-link" href="#">Previous</a>
+                    </li>
+                `);
+
+                // previous previous button event listener -------------------------------------------
+                $('#previousBtn').click(e => {
+                    // if pageIndex is lower than 1, do nothing
+                    // else minus pageIndex by 1
+                    if (pageIndex <= 1) return;
+                    pageIndex -= 1;
+
+                    // ajax request for table change
+                    ajaxRequest(pageIndex, GLOBAL_SEARCH_NAME);
                 });
-                return false;
-        }
 
+                // preparing variable ----------------------------------------------------------------
+                let middlePoint = 3;
+                let startingInt = 1;
 
+                // if PageIndex is larger than middlePoint
+                if (pageIndex > middlePoint)
+                {
+                    // then add the starting int by substracting from pageIndex
+                    startingInt += pageIndex - middlePoint;
+
+                    // if it was last two index, minus startingInt with 2 or 1.
+                    if (pageIndex * 5 >= totalCount)
+                    {
+                        startingInt -= 2;
+                    }
+                    else if (pageIndex * 5 >= totalCount - 5)
+                    {
+                        startingInt -= 1;
+                    }
+                }
+
+                // loop and append the page-index ----------------------------------------------------
+                for (let i = startingInt; i < startingInt + 5; i++ ) {
+                    // if total pageIndex is larger than totalCount
+                    // break the loop
+                    if ((i - 1) * 5 >= totalCount) break;
+
+                    let active = (pageIndex == i) ? 'active' : '';
+
+                    paginationLink.append(`
+                        <li class="page-item ${active}">
+                            <a class="page-link page-index" href="#">${i}</a>
+                        </li>
+                    `);
+                }
+
+                // page index click event listener ---------------------------------------------------
+                $('.page-index').click(e => {
+                    // get the index they need to go (have to convert to number)
+                    let index = $(e.currentTarget).text();
+                    index = parseInt(index);
+
+                    // ajax request for table change
+                    ajaxRequest(index, GLOBAL_SEARCH_NAME);
+                });
+
+                // append nextBtn, and look is it disable or not -------------------------------------
+                let nextDisabled = (pageIndex >= (totalCount / 5)) ? 'disabled' : '';
+                paginationLink.append(`
+                    <li id="nextBtn" class="page-item ${nextDisabled}">
+                        <a class="page-link" href="#">Next</a>
+                    </li>
+                `);
+
+                // next button click event listener --------------------------------------------------
+                $('#nextBtn').click(e => {
+                    // if pageIndex is larger than totalCount pageIndex, do nothing
+                    // else add pageIndex by 1
+                    if (pageIndex >= (totalCount / 5)) return;
+                    pageIndex += 1;
+
+                    // ajax request for table change
+                    ajaxRequest(pageIndex, GLOBAL_SEARCH_NAME);
+                });
+            };
+
+            // to re-render the table body ==============================================================
+            let renderTableBody = (table) => {
+                let tableBody = $('#tableBody');
+                tableBody.html('');
+
+                for (let data of table) {
+                    tableBody.append(`
+                        <tr>
+                            <th scope="row">${data.id}</th>
+                            <td>${data.name}</td>
+                        </tr>
+                    `);
+                }
+            };
+
+            // for ajax request =========================================================================
+            let ajaxRequest = (pageIndex, searchName) => {
+                $.ajax({  
+                    type: "POST",  
+                    url: '@Url.Action("Index")',  
+                    data: {
+                        sortOrder: '',
+                        searchName: searchName,
+                        pageIndex: pageIndex,
+                    },
+                    //dataType: "json",  
+                    //contentType: "application/json; charset=utf-8",  
+                    success: (data) => {  
+                        console.log('success', data, data.demoTable);
+                        renderTableBody(data.demoTable);
+                        renderPaginationLink(data.pageIndex, data.totalCount);
+                    },  
+                    error: () => {  
+                        alert("Error display data, Please refresh the page.");  
+                    }  
+                });
+            };
+
+            // IMPLEMENTATION ---------------------------------------------------------------------
+            ajaxRequest(1);
+
+            $('#btnSearch').click(e => {
+                // get the search value and assign to global
+                let searchName = $('#searchName').val();
+                GLOBAL_SEARCH_NAME = searchName;
+
+                // then call to ajax
+                ajaxRequest(1, searchName);
+            });
+        });
     </script>
 }
